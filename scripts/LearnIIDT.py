@@ -1,8 +1,16 @@
-#!/Library/Frameworks/Python.framework/Versions/2.7/bin/python
+#!/Users/omer/Library/Enthought/Canopy_64bit/User/bin/Python
 # coding: utf-8
-# Computes optimal consumption when income is iid process and agent is liquidity constrained
+# This code generates the dynamics of the learning algorithm for the paper under more general income process if agents have finite lives:
+# 1. Özak, Ömer, "Optimal consumption under uncertainty, liquidity constraints, and bounded rationality", Journal of Economic Dynamics and Control, 2014, Vol. 39: 237-254 (http://dx.doi.org/10.1016/j.jedc.2013.12.007)
+# It can be used to generate the results in 
+# Howitt, Peter and Özak, Ömer, "Adaptive Consumption Behavior" Journal of Economic Dynamics and Control, 2014, Vol. 39: 37-61 (http://dx.doi.org/10.1016/j.jedc.2013.11.003)
+# Although it was not written for that purpose and needs some changes (see comments below)
+# The program is not fully optimized. Instead it is written in order to maximize readibility, understanding, and replicability.
+# Should work on most Python distributions. Tested on Enthought Canopy 1.3, Python.org 2.7.6 + Numpy 1. + Scipy 1.10
+# Feel free to use the code and play with parameters
 # Author: Ömer Özak
-# Date: September 2013
+# email: ozak (at) smu.edu
+# Date: April 2013
 from __future__ import division
 from scipy import linspace, mean, exp, randn 
 from scipy.optimize import fminbound
@@ -22,8 +30,8 @@ constant=0
 HO=0                        # Use original HO-algorithm matrix =1
 #alg='zero'                  # Type of algorithm: zero, backward
 alg='backward'                  # Type of algorithm: zero, backward
-yp1='YP1/'
 #yp1=''
+yp1='YP1/'
 
 # Parameters for varying the algorithm
 Newt=0                      # Flag for using full Hessian
@@ -35,7 +43,7 @@ qzero = 1.0e-003            # Quasi-zero in steepest descent + shrinking
 np.random.seed(100)
 
 # Output directory
-dir=os.getenv("HOME")+'/Dropbox/LatexMe/Consumption/data/'
+dir='../data/'
 filelin=dir+'lincons.npz'
 dir=dir+'T/'+yp1+'LogN/'
 if os.path.exists(dir[0:len(dir)-5-len(yp1)])==False:
@@ -57,17 +65,13 @@ if os.path.exists(dir)==False:
     os.mkdir(dir)
 fileout=dir+'learnoptcons.npz'
 
-
 # Sample size and time horizon
 N=100000
 T=60
 
 # Let's replicate the Howitt Ozak parameter's
 theta, beta= 3, 0.9     # Preference Parameters
-#p=np.array([0.2, 0.6,0.2])        # Probability if income value i
-#y=np.array([0.7,1,1.3])             # Income values
 R=1                     # Gross Interest rate
-sigman=0.18               # Std of log-income
 
 # Grid of values for wealth over which function will be approximated
 gridmax, gridsize = 5, 300
@@ -83,6 +87,7 @@ theta1=1-theta
 rho=beta
 
 # Assume income process is U shaped + log-normal shock with mean 1 and std 0.1
+sigman=0.18               # Std of log-income
 yt = exp(sigman*randn(N,TT))                   # Draws of shock
 if yp1=='':
     yp = .6-constant*1.5*(np.arange(0,1,1/(TT+2))-.5)**2
@@ -182,47 +187,34 @@ optimal=np.load(fileopt)
 sopt=optimal['sopt']
 copt=optimal['copt']
 
-# Import Linear rule welfare data
+##########################################
+# Choose how to initialize agents
 '''
-linear=np.load(filelin)
-EVlin=linear['EVlin']
-CElin=linear['CElin']
-Pstat=linear['Pstat']
-
-# Create EVlinear function by interpolating EVlin over (a,b)
-EVlinear=lininterp2(a,b,EVlin)
-CElinear=lininterp2(a,b,CElin)
-loss = lambda a,b: (CEopt-CElinear(a,b))/CEopt*100
-'''
-'''
-'B,A=np.meshgrid(b,a)
-A=A.transpose()
-B=B.transpose()
-'''
-
-'''
-# Initialize agents
+# Initialize agents Random rules
 a0=np.random.choice(agrid,size=N)
 b0=np.random.choice(bgrid,size=N)
 w0=np.random.choice(Ws,size=N)
 '''
-# Initialize agents
+# Initialize agents (Identical rules)
 a0=0*np.ones(N)
 b0=.5*np.ones(N)
 w0=Ws.mean()*np.ones(N)
 
-# Initialize Matrices
-C=np.zeros((N,T))
-EV=np.zeros((N,T))
-A=np.zeros((N,T))
-B=np.zeros((N,T))
-W=np.zeros((N,T))
+# Initialize Matrices to keep outputs of simulation
+C=np.zeros((N,T))   # Consumption
+EV=np.zeros((N,T))  # Equivalent Variation
+A=np.zeros((N,T))   # Intercept
+B=np.zeros((N,T))   # MPC
+W=np.zeros((N,T))   # Wealth
 
+# Store initial values
 W[:,0]=w0
 A[:,0]=a0
 B[:,0]=b0
 C[:,0]=np.array([c([a,b],w) for a,b,w in zip(a0,b0,w0)])
 d=np.array([chat([a,b],w) for a,b,w in zip(a0,b0,w0)])
+
+# Define matrix M
 if HO==1:
     M=np.zeros((N,2,2))
 else:
@@ -255,19 +247,20 @@ for t in range(1,T):
     else:
         A2=np.array( [ (u2[i]*(Q[i]-u1[i])) * np.dot(M[i], np.array([1,W[i,t-1]]) ) for i in range(N) ] )
         A2=np.array([A[:,t-1],B[:,t-1]]).transpose()+0.35*A2#0.35*A2#kappa(t)*A2
-    #'''
+    # Choose what to do if new coefficients are outside of the acceptable space
+    #''' Keep previous values as new values
     A2[:,0]=np.where(A2[:,0]<0,A[:,t-1],A2[:,0])
     A2[:,1]=np.where(A2[:,1]<0,B[:,t-1],A2[:,1])
     A2[:,0]=np.where(A2[:,0]>agrid.max(),A[:,t-1],A2[:,0])
     A2[:,1]=np.where(A2[:,1]>bgrid.max(),B[:,t-1],A2[:,1])
     #'''
-    '''
+    '''Take new values randomly from set as new values
     A2[:,0]=np.where(A2[:,0]<0,np.random.choice(agrid),A2[:,0])
     A2[:,1]=np.where(A2[:,1]<0,np.random.choice(bgrid),A2[:,1])
     A2[:,0]=np.where(A2[:,0]>agrid.max(),np.random.choice(agrid),A2[:,0])
     A2[:,1]=np.where(A2[:,1]>bgrid.max(),np.random.choice(bgrid),A2[:,1])
     #'''
-    '''
+    '''Take average as new values
     A2[:,0]=np.where(A2[:,0]<0,agrid.mean(),A2[:,0])
     A2[:,1]=np.where(A2[:,1]<0,bgrid.mean(),A2[:,1])
     A2[:,0]=np.where(A2[:,0]>agrid.max(),agrid.mean(),A2[:,0])
@@ -276,20 +269,7 @@ for t in range(1,T):
     A[:,t]=fr*A2[:,0]+(1-fr)*A[:,t-1]
     B[:,t]=fr*A2[:,1]+(1-fr)*B[:,t-1]
 
-    
-'''
-plt.figure()    
-plt.plot([[W[:,t].min(),W[:,t].max(),W[:,t].mean()] for t in range(T)])
-plt.savefig(dir+'Wpath.eps')
-plt.draw()
-plt.figure()    
-plt.plot([[A[:,t].min(),A[:,t].max(),A[:,t].mean()] for t in range(T)])
-plt.savefig(dir+'Apath.eps')
-plt.draw()
-plt.plot([[B[:,t].min(),B[:,t].max(),B[:,t].mean()] for t in range(T)])
-plt.savefig(dir+'Bpath.eps')
-plt.draw()
-'''
+# Plot resulting paths for coefficients, wealth, consumption
 plt.figure()    
 plt.plot([[A[:,t].min(),A[:,t].max(),A[:,t].mean(),mquantiles(A[:,t],prob=[0.25]),mquantiles(A[:,t],prob=[0.75]),mquantiles(A[:,t],prob=[0.5])] for t in range(T)])
 plt.xlabel(r'Period')
@@ -336,6 +316,9 @@ plt.legend(loc=2)
 plt.savefig(dir+'Caverage2.eps')
 plt.draw()
 
+##############################################################################################################################
+# Compute differences in life-time utility and certainty equivalents between fully rational and boundedly rational rules
+##############################################################################################################################
 # Life-time Utility received by agents using linear rule
 ULin=np.array( [beta**t*U(C[:,t],theta1) for t in range(T)])
 #Average lifetime utility across agents

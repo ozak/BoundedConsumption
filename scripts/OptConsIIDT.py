@@ -1,7 +1,15 @@
-#!/Library/Frameworks/Python.framework/Versions/2.7/bin/python
+#!/Users/omer/Library/Enthought/Canopy_64bit/User/bin/Python
 # coding: utf-8
-# Computes optimal consumption when income is iid process and agent is liquidity constrained
+# This code generates the Fully Rational Consumption and Value Functions for more general income processes in the analysis of the papers:
+# 1. Howitt, Peter and Özak, Ömer, "Adaptive Consumption Behavior" Journal of Economic Dynamics and Control, 2014, Vol. 39: 37-61 (http://dx.doi.org/10.1016/j.jedc.2013.11.003)
+# 2. Özak, Ömer, "Optimal consumption under uncertainty, liquidity constraints, and bounded rationality", Journal of Economic Dynamics and Control, 2014, Vol. 39: 237-254 (http://dx.doi.org/10.1016/j.jedc.2013.12.007)
+# In particular, it computes optimal consumption when agent is liquidity constrained, income follows a log-normal iid process (with possible inverse U-shaped trend), CRRA coefficient is 3, discount factor is 0.9 (as in Allen and Carroll) and agent lives T periods
+# These are baseline results and are the common specification in both these papers and in the Allen and Carroll paper.
+# The program is not fully optimized. Instead it is written in order to maximize readibility, understanding, and replicability.
+# Should work on most Python distributions. Tested on Enthought Canopy 1.3, Python.org 2.7.6 + Numpy 1. + Scipy 1.10
+# Feel free to use the code and play with parameters
 # Author: Ömer Özak
+# email: ozak (at) smu.edu
 # Date: April 2013
 from __future__ import division
 from scipy import linspace, mean, exp, randn 
@@ -18,7 +26,7 @@ constant=1
 np.random.seed(100)
 
 # Output directory
-dir=os.getenv("HOME")+'/Dropbox/LatexMe/Consumption/data/T/LogN/'
+dir='../data/T/LogN/'
 if os.path.exists(dir[0:len(dir)-7])==False:
     os.mkdir(dir[0:len(dir)-7])
 if os.path.exists(dir[0:len(dir)-5])==False:
@@ -31,24 +39,21 @@ if constant==0:
         os.mkdir(dir)
 file=dir+'optconsT'
 
-# Let's replicate the Howitt Ozak parameter's
-theta, beta= 3, 0.9     # Preference Parameters
-#p=np.array([0.2, 0.6,0.2])        # Probability if income value i
-#y=np.array([0.7,1,1.3])             # Income values
-R=1                     # Gross Interest rate
-sigman=0.18               # Std of log-income
+# Let's replicate the Howitt Ozak (2014) parameter's
+theta, beta= 3, 0.9                 # Preference Parameters
+R=1                                 # Gross Interest rate
 
-# Lifespan is TT+1, i.e. agent dies in period T+1
+# Lifespan is TT+1, i.e. agent dies in period TT+1
 TT=60
 
 # auxiliary parameters and functions
 theta1=1-theta
 rho=beta
 
-# Assume income process is U shaped + log-normal shock with mean 1 and std 0.1
-yt = exp(sigman*randn(1000))                   # Draws of shock
-#yp = 1-constant*(np.arange(0,1,1/(TT+2))-.5)**2
-yp = .6-constant*1.5*(np.arange(0,1,1/(TT+2))-.5)**2
+# Assume income process is U shaped + log-normal shock with mean 1 and std 0.18
+sigman=0.18                                             # Std of log-income
+yt = exp(sigman*randn(1000))                            # Draws of shock (transitory income)
+yp = .6-constant*1.5*(np.arange(0,1,1/(TT+2))-.5)**2    # Permanent Income
 
 # Parameters for the optimization procedures
 maxiter=1000
@@ -78,12 +83,15 @@ def maximum(h, a, b):
 def maximizer(h, a, b):
     return float(fminbound(lambda x: -h(x), a, b))
 
+# The following two functions are used to find the optimal consumption and value functions using value function iteration
 # Bellman Operator
 def bellman(w,t):
     """The approximate Bellman operator.
     Parameters: w is a vectorized function (i.e., a 
     callable object which acts pointwise on arrays).
     Returns: An instance of LinInterp that represents the optimal operator.
+    Given a Value w function and period t, which determines the income to be received
+    it returns the value at t-1
     """
     vals = []
     for W in grid:
@@ -97,6 +105,7 @@ def policy(w,t):
     Parameters: w is a vectorized function (i.e., a 
     callable object which acts pointwise on arrays).
     Returns: An instance of LinInterp that captures the optimal policy.
+    Given the value function in perio t, it return the optimal saving in that period
     """
     vals = []
     for W in grid:
@@ -104,49 +113,38 @@ def policy(w,t):
         vals.append(maximizer(h, 0, W))
     return LinInterp(grid, vals)
 
-# T operator
-def T(sigma, w):
-    "Implements the operator L T_sigma."
-    vals = []
-    for W in grid:
-        Tw_y = U(max(W - sigma(W),0),theta1) + rho * mean(w(f(sigma(W),y)))
-        vals.append(Tw_y)
-    return LinInterp(grid, vals)
+##################################################################################################
+##################################################################################################
+# Now let's start the computations
+##################################################################################################
+##################################################################################################
 
-# Value function of following policy sigma
-def get_value(sigma, v):    
-    """Computes an approximation to v_sigma, the value
-    of following policy sigma. Function v is a guess.
-    """
-    tol_v = 1e-5         # Error tolerance 
-    #counter=0
-    while 1:#counter<maxiter:
-        #counter+=1
-        new_v = T(sigma, v)
-        err_v = 2*beta/((1-beta)**2)*max(abs(new_v(grid) - v(grid)))
-        if err_v < tol_v:
-            return new_v
-        v = new_v 
-    '''if counter>maxiter:
-        print 'Maximum iterations exceeded'
-        return err'''           
+start=time.time()
 
+##################################################################################################
 # Finding the approximate value function using value function iteration
+##################################################################################################
+
+# Optinal policies and indirect utilities in the final period
 count=TT
 u0=LinInterp(grid,U(grid,theta1))
 c0=LinInterp(grid,grid)
 s0=LinInterp(grid,np.zeros_like(grid))
+
+# Holders for our results
 # u holds the optimal expected utility at each age utility
 u=np.array([],dtype=type(u0))
 # copt holds the optimal consumption function at each age
 copt=np.array([],dtype=type(u0))
 # sopt holds the optimal savings function at each age
 sopt=np.array([],dtype=type(u0))
-# u0 is the utility of consuming everything, which is optimal at age TT+1
+
+# u0 is the utility of consuming everything (c0) adn saving nothing (s0), which is optimal at age TT
 u=np.append(u,u0)
 copt=np.append(copt,c0)
 sopt=np.append(sopt,s0)
 
+# Iterate backwards
 start=time.time()
 while count>-1:
     u0=bellman(u0,count)
@@ -158,7 +156,7 @@ while count>-1:
     count-=1
 print('it took %2.2f seconds to compute' % (time.time()-start))
 
-# Now let's draw the approximate optimal consumption, saving, utility
+# Now let's draw the approximate optimal consumption, saving, utility for each age
 plt.figure(1)
 #plt.ylim([0,2])
 #plt.xlim([0,2])
@@ -191,8 +189,6 @@ copt2=np.array([copt[i](grid) for i in range(len(copt))])
 sopt2=np.array([sopt[i](grid) for i in range(len(sopt))])
 u2=np.array([u[i](grid) for i in range(len(u))])
 
-########
+# Save results to be used by adaptive algorithm
 np.savez_compressed(file,grid=grid,sopt=sopt,copt=copt,u=u,sopt2=sopt2,copt2=copt2,u2=u2)
 plt.show()
-'''
-'''

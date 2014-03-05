@@ -1,8 +1,10 @@
-#!/Library/Frameworks/Python.framework/Versions/2.7/bin/python
+#!/Users/omer/Library/Enthought/Canopy_64bit/User/bin/Python
 # coding: utf-8
-# Computes statistics for the income processes used in Howitt and Özak (2013)
+# This code Computes statistics for the income processes used in:
+# Howitt, Peter and Özak, Ömer, "Adaptive Consumption Behavior" Journal of Economic Dynamics and Control, 2014, Vol. 39: 37-61 (http://dx.doi.org/10.1016/j.jedc.2013.11.003)
 # Author: Ömer Özak
-# Date: October 2013
+# email: ozak (at) smu.edu
+# Date: April 2013
 from __future__ import division
 import numpy as np
 from random import uniform

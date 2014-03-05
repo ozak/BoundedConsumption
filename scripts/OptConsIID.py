@@ -1,7 +1,16 @@
-#!/Library/Frameworks/Python.framework/Versions/2.7/bin/python
+#!/Users/omer/Library/Enthought/Canopy_64bit/User/bin/Python
 # coding: utf-8
-# Computes optimal consumption when income is iid process and agent is liquidity constrained
+# This code generates the Fully Rational Consumption and Value Functions for more general income processes in the analysis of the papers:
+# 1. Howitt, Peter and Özak, Ömer, "Adaptive Consumption Behavior" Journal of Economic Dynamics and Control, 2014, Vol. 39: 37-61 (http://dx.doi.org/10.1016/j.jedc.2013.11.003)
+# 2. Özak, Ömer, "Optimal consumption under uncertainty, liquidity constraints, and bounded rationality", Journal of Economic Dynamics and Control, 2014, Vol. 39: 237-254 (http://dx.doi.org/10.1016/j.jedc.2013.12.007)
+# In particular, it computes optimal consumption when agent is liquidity constrained, income follows a log-normal iid process, CRRA coefficient is 3, and discount factor is 0.9 (as in Allen and Carroll) 
+# These are baseline results and are the common specification in both these papers and in the Allen and Carroll paper.
+# The program is not fully optimized. Instead it is written in order to maximize readibility, understanding, and replicability.
+# It includes two ways of contructing the optimal policies and value functions.
+# Should work on most Python distributions. Tested on Enthought Canopy 1.3, Python.org 2.7.6 + Numpy 1. + Scipy 1.10
+# Feel free to use the code and play with parameters
 # Author: Ömer Özak
+# email: ozak (at) smu.edu
 # Date: April 2013
 from __future__ import division
 from scipy import linspace, mean, exp, randn 
@@ -16,26 +25,24 @@ import time,sys,os
 np.random.seed(100)
 
 # Output directory
-dir=os.getenv("HOME")+'/Dropbox/LatexMe/Consumption/data/LogN/'
+dir='../data/LogN/'
 if os.path.exists(dir[0:len(dir)-5])==False:
     os.mkdir(dir[0:len(dir)-5])
 if os.path.exists(dir)==False:
     os.mkdir(dir)
 file=dir+'optcons'
 
-# Let's replicate the Howitt Ozak parameter's
-theta, beta= 3, 0.9     # Preference Parameters
-#p=np.array([0.2, 0.6,0.2])        # Probability if income value i
-#y=np.array([0.7,1,1.3])             # Income values
-R=1                     # Gross Interest rate
-sigman=0.18               # Std of log-income
+# Let's replicate the Howitt Ozak (2014) parameter's
+theta, beta= 3, 0.9                 # Preference Parameters
+R=1                                 # Gross Interest rate
 
 # auxiliary parameters and functions
 theta1=1-theta
 rho=beta
 
-# Assume income process is log-normal with mean 1 and std 0.1
-y = exp(sigman*randn(1000))                   # Draws of shock 
+# Assume income process is log-normal with mean 1 and std 0.18
+sigman=0.18                          # Std of log-income
+y = exp(sigman*randn(1000))         # Draws of shock 
 
 # Parameters for the optimization procedures
 count=0
@@ -66,12 +73,14 @@ def maximum(h, a, b):
 def maximizer(h, a, b):
     return float(fminbound(lambda x: -h(x), a, b))
 
+# The following two functions are used to find the optimal consumption and value functions using value function iteration
 # Bellman Operator
 def bellman(w):
     """The approximate Bellman operator.
     Parameters: w is a vectorized function (i.e., a 
     callable object which acts pointwise on arrays).
     Returns: An instance of LinInterp that represents the optimal operator.
+    w is a function defined on the state space.
     """
     vals = []
     for W in grid:
@@ -83,8 +92,10 @@ def bellman(w):
 def policy(w):
     """The approximate optimal policy operator w-greedy.
     Parameters: w is a vectorized function (i.e., a 
-    callable object which acts pointwise on arrays).
+    callable object which acts pointwise on arrays). 
     Returns: An instance of LinInterp that captures the optimal policy.
+    For each function w, policy(w) return the function that maximizes the RHS of the Bellman operator.
+    Replace w for the Value function to get optimal policy.
     """
     vals = []
     for W in grid:
@@ -92,9 +103,13 @@ def policy(w):
         vals.append(maximizer(h, 0, W))
     return LinInterp(grid, vals)
 
+# The following two functions are used to find the optimal consumption and value functions using policy function iteration
 # T operator
 def T(sigma, w):
-    "Implements the operator L T_sigma."
+    """Implements the operator L T_sigma.
+    For each policy sigma and 'Value' function, it returns a new Value function
+    Used by function get_value(sigma,v) to generate the value function under sigma.
+    """
     vals = []
     for W in grid:
         Tw_y = U(max(W - sigma(W),0),theta1) + rho * mean(w(f(sigma(W),y)))
@@ -119,10 +134,20 @@ def get_value(sigma, v):
         print 'Maximum iterations exceeded'
         return err'''           
         
+##################################################################################################
+##################################################################################################
+# Now let's start the computations
+##################################################################################################
+##################################################################################################
 
 start=time.time()
+
+##################################################################################################
 # Finding the approximate value function using value function iteration
-u0=LinInterp(grid,U(grid,theta1))
+##################################################################################################
+
+u0=LinInterp(grid,U(grid,theta1))   # Initial guess of value function (using linear interpolation on grid, u0 is a function!)
+# Let's plot the intermediate output
 plt.figure(1)
 #plt.ylim([0,2])
 #plt.xlim([0,2])
@@ -149,11 +174,14 @@ while count<maxiter:
 plt.plot(grid,u1(grid))
 plt.draw()
 
-optpolicy=policy(u0)
-optcons=LinInterp(grid,grid-optpolicy(grid))
+# u1 is the optimal value function
+optpolicy=policy(u0)                            # Optimal saving policy
+optcons=LinInterp(grid,grid-optpolicy(grid))    # Optimal consumption function
 print('error is %2.14f' % np.max(np.abs(np.array(u1(grid))-np.array(u0(grid)))))
 print('it took %2.2f seconds to compute' % (time.time()-start))
-# Now let's find the approximate optimal policy and draw it
+
+# Now let's use the approximate optimal policy function to draw it
+# Graph for Fully Rational Optimal Savings
 plt.figure(2)
 #plt.ylim([0,2])
 #plt.xlim([0,2])
@@ -162,6 +190,7 @@ plt.plot(grid,optpolicy(grid)+mean(y))
 plt.savefig(dir+'OptSaving.eps')
 plt.draw()
 
+# Graph for Fully Rational Optimal Consumption
 plt.figure(3)
 #plt.ylim([0,2])
 #plt.xlim([0,2])
@@ -169,72 +198,25 @@ plt.figure(3)
 plt.plot(grid,optcons(grid))
 plt.savefig(dir+'OptCons.eps')
 plt.draw()
-'''
-# Now let's use the optimal policy to find the stationary distribution under that policy
-t=100000        # Number of periods to simulate in order to generate the stationary pdf
-dx=0.01          # Gridcell size for pdf 
-g = lambda x: R*optpolicy(x)    # Interest on savings
-F = lambda x, w : g(x)+w        # Wealth transition function
-Finv = lambda y, x: y-g(x)      # income level for given future wealth and current interest+savings
-dF = lambda y, x: 1             # Derivative of Finv wrt y
-phinv=lognorm.pdf               # PDF of the income process
 
-# Wealth's Stochastic Recursive System
-Wealth_srs=SRS(F=F,phi=np.random.lognormal,X=np.random.permutation(grid)[0],mu=0,sigma=sigman)
-# Stationary PDF for wealth 
-statprob=Wealth_srs.stationaryDist(n=t, FInv=Finv, dF=dF, phinv=phinv, dx=dx) # Outcome of MonteCarlo
-xmin=0   # Grid initial w0
-xmax=5   # Maximum wealth
-Ws=np.arange(xmin,xmax,dx)      # Range of wealth in the grid
-dists=LinInterp(Ws,statprob)     # Create a linear interpolation based on the grid 
-#statpdf=LinInterp(grid,dists(grid))  # Now use original grid values in order to get the stationary pdf for them and initialize a linear interpolation based on them
-
-#Plot stationary PDF 
-plt.figure(4)
-plt.plot(Ws,statprob)
-plt.draw()
-
-# What does the stationary distribution look like before 100000
-
-statprob2=[Wealth_srs.stationary(y=y, n=500, FInv=Finv, dF=dF, phinv=phinv) for y in np.arange(xmin,xmax,dx)]
-plt.plot(Ws,statprob2/sum(statprob2))
-plt.draw()
-
-statprob3=[Wealth_srs.stationary(y=y, n=100, FInv=Finv, dF=dF, phinv=phinv) for y in np.arange(xmin,xmax,dx)]
-plt.plot(Ws,statprob3/sum(statprob3))
-plt.draw()
-
-statprob4=[Wealth_srs.stationary(y=y, n=50, FInv=Finv, dF=dF, phinv=phinv) for y in np.arange(xmin,xmax,dx)]
-plt.plot(Ws,statprob4/sum(statprob4))
-plt.draw()
-
-statprob5=[Wealth_srs.stationary(y=y, n=10, FInv=Finv, dF=dF, phinv=phinv) for y in np.arange(xmin,xmax,dx)]
-plt.plot(Ws,statprob5/sum(statprob5))
-plt.draw()
-
-# Expected Wealth and Expected Value if initial wealth is distributed according to the stationary PDF
-cons=optcons(Ws)    # Consumption on Ws
-EW=sum(statprob*Ws) # Expected wealth under stationary distribution
-EV=sum(statprob*u0(Ws)) # Expected Lifetime utility under optimal rule when initial wealth is distributed according to stationary probability
-CE=(1+theta1*(1-beta)*EV)**(1/theta1)
-print "Expected wealth=%1.4f, expected LT Utility=%1.4f, CE=%1.4f" %(EW,EV,CE) 
- 
-plt.show()
-'''
+##################################################################################################
 # Now let us construct the approximate optimal policies and value functions
 # using policy iteration
+##################################################################################################
+
+# Draw intermediate steps again
 plt.figure(4)
 start=time.time()
-sigma0=LinInterp(grid,0.5*grid)
-v0=LinInterp(grid,U(0.5*grid,theta1))
+sigma0=LinInterp(grid,0.5*grid)             # Initial guess for optinal savings function
+v0=LinInterp(grid,U(0.5*grid,theta1))       # Initial guess for value function of sigma
 count=0
 while count<maxiter:
-    v1=get_value(sigma0,v0)
-    sigma1=policy(v1)
+    v1=get_value(sigma0,v0)                 # Generate v_sigma_0 value function
+    sigma1=policy(v1)                       # Generate optimal policy for v_sigma_1
     plt.plot(grid,sigma1(grid))
     plt.draw()
-    err=2*beta/((1-beta)**2)*np.max(np.abs(np.array(v1(grid))-np.array(v0(grid))))
-    #err=2*beta/((1-beta)**2)*np.max(np.abs(np.array(sigma0(grid))-np.array(sigma1(grid))))
+    err=2*beta/((1-beta)**2)*np.max(np.abs(np.array(v1(grid))-np.array(v0(grid))))              # Stopping condition
+    #err=2*beta/((1-beta)**2)*np.max(np.abs(np.array(sigma0(grid))-np.array(sigma1(grid))))     # Different Stopping condition
     if err<tol:
         print count
         break
@@ -269,10 +251,13 @@ plt.plot(grid,u0(grid))
 plt.savefig(dir+'OptValue.eps')
 plt.draw()
 
-# Now let's use the optimal policy to find the stationary distribution under that policy
-t=100000        # Number of periods to simulate in order to generate the stationary pdf
-dx=0.01          # Gridcell size for pdf 
-g = lambda x: R*sigma0(x)    # Interest on savings
+##################################################################################################
+# Now let's use the optimal policy from policy iteration to find the stationary distribution under that policy
+##################################################################################################
+
+t=100000                        # Number of periods to simulate in order to generate the stationary pdf
+dx=0.01                         # Gridcell size for pdf 
+g = lambda x: R*sigma0(x)       # Interest on savings
 F = lambda x, w : g(x)+w        # Wealth transition function
 Finv = lambda y, x: y-g(x)      # income level for given future wealth and current interest+savings
 dF = lambda y, x: 1             # Derivative of Finv wrt y
@@ -293,15 +278,16 @@ plt.figure(7)
 plt.plot(Ws,statprob2)
 plt.draw()
 # Expected Wealth and Expected Value if initial wealth is distributed according to the stationary PDF
-cons2=optcons2(Ws)    # Consumption on Ws
-EW2=sum(statprob2*Ws) # Expected wealth under stationary distribution
-EV2=sum(statprob2*v0(Ws)) # Expected Lifetime utility under optimal rule when initial wealth is distributed according to stationary probability
-CE2=(1+theta1*(1-beta)*EV2)**(1/theta1)
+cons2=optcons2(Ws)                      # Consumption on Ws
+EW2=sum(statprob2*Ws)                   # Expected wealth under stationary distribution
+EV2=sum(statprob2*v0(Ws))               # Expected Lifetime utility under optimal rule when initial wealth is distributed according to stationary probability
+CE2=(1+theta1*(1-beta)*EV2)**(1/theta1) # Certainty Equivalent
 print "Expected wealth=%1.4f, expected LT Utility=%1.4f, CE=%1.4f" %(EW2,EV2,CE2) 
  
-###########
+##################################################################################################
+# Now let's use the optimal policy from value function iteration to find the stationary distribution under that policy
+##################################################################################################
 
-# Now let's use the optimal policy to find the stationary distribution under that policy
 t=100000        # Number of periods to simulate in order to generate the stationary pdf
 dx=0.01          # Gridcell size for pdf 
 g = lambda x: R*optpolicy(x)    # Interest on savings
@@ -325,32 +311,14 @@ plt.figure(8)
 plt.plot(Ws,statprob)
 plt.draw()
 
-# What does the stationary distribution look like before 100000
-
-statprob2=[Wealth_srs.stationary(y=y, n=500, FInv=Finv, dF=dF, phinv=phinv) for y in np.arange(xmin,xmax,dx)]
-plt.plot(Ws,statprob2/sum(statprob2))
-plt.draw()
-
-statprob3=[Wealth_srs.stationary(y=y, n=100, FInv=Finv, dF=dF, phinv=phinv) for y in np.arange(xmin,xmax,dx)]
-plt.plot(Ws,statprob3/sum(statprob3))
-plt.draw()
-
-statprob4=[Wealth_srs.stationary(y=y, n=50, FInv=Finv, dF=dF, phinv=phinv) for y in np.arange(xmin,xmax,dx)]
-plt.plot(Ws,statprob4/sum(statprob4))
-plt.draw()
-
-statprob5=[Wealth_srs.stationary(y=y, n=10, FInv=Finv, dF=dF, phinv=phinv) for y in np.arange(xmin,xmax,dx)]
-plt.plot(Ws,statprob5/sum(statprob5))
-plt.draw()
-
 # Expected Wealth and Expected Value if initial wealth is distributed according to the stationary PDF
-cons=optcons(Ws)    # Consumption on Ws
-EW=sum(statprob*Ws) # Expected wealth under stationary distribution
-EV=sum(statprob*u0(Ws)) # Expected Lifetime utility under optimal rule when initial wealth is distributed according to stationary probability
-CE=(1+theta1*(1-beta)*EV)**(1/theta1)
+cons=optcons(Ws)                        # Consumption on Ws
+EW=sum(statprob*Ws)                     # Expected wealth under stationary distribution
+EV=sum(statprob*u0(Ws))                 # Expected Lifetime utility under optimal rule when initial wealth is distributed according to stationary probability
+CE=(1+theta1*(1-beta)*EV)**(1/theta1)   # Certainty Equivalent
 print "Expected wealth=%1.4f, expected LT Utility=%1.4f, CE=%1.4f" %(EW,EV,CE) 
-########
+
+##################################################################################################
 np.savez_compressed(file,vopt=v0,vopt2=u0,EWopt=EW,EVopt=EV,CEopt=CE,EW2opt=EW2,EV2opt=EV2,CE2opt=CE2,Ws=Ws,statprob=statprob,statprob2=statprob2,optcons=cons,optcons2=cons2)
+##################################################################################################
 plt.show()
-'''
-'''

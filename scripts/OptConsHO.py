@@ -6,8 +6,8 @@
 # In particular, it computes optimal consumption when agent is liquidity constrained, income follows 3-point iid process, CRRA coefficient is 3, and discount factor is 0.9 (as in Allen and Carroll) 
 # These are baseline results and are the common specification in both these papers and in the Allen and Carroll paper.
 # The program is not fully optimized. Instead it is written in order to maximize readibility, understanding, and replicability.
-# It includes two ways of contructing the optimnal policies and value functions.
-# Should work on most Python distributions. Tested on Enthougght Canopy 1.3, Python.org 2.7.6 + Numpy 1. + Scipy 1.10
+# It includes two ways of contructing the optimal policies and value functions.
+# Should work on most Python distributions. Tested on Enthought Canopy 1.3, Python.org 2.7.6 + Numpy 1. + Scipy 1.10
 # Feel free to use the code and play with parameters
 # Author: Ömer Özak
 # email: ozak (at) smu.edu
@@ -34,10 +34,10 @@ if os.path.exists(dir)==False:
 file=dir+'optcons'
 
 # Let's replicate the Howitt Ozak (2014) parameter's
-theta, beta= 3, 0.9     # Preference Parameters
-p=np.array([0.2, 0.6,0.2])        # Probability if income value i
-y1=np.array([0.7,1,1.3])             # Income values
-R=1                     # Gross Interest rate
+theta, beta= 3, 0.9                 # Preference Parameters
+p=np.array([0.2, 0.6,0.2])          # Probability if income value i
+y1=np.array([0.7,1,1.3])            # Income values
+R=1                                 # Gross Interest rate
 
 # Grid of values for wealth over which function will be approximated
 gridmax, gridsize = 5, 300
@@ -300,13 +300,14 @@ plt.plot(Ws,statprob)
 plt.draw()
 
 # Expected Wealth and Expected Value if initial wealth is distributed according to the stationary PDF
-cons=optcons(Ws)    # Consumption on Ws
-EW=sum(statprob*Ws) # Expected wealth under stationary distribution
-EV=sum(statprob*u0(Ws)) # Expected Lifetime utility under optimal rule when initial wealth is distributed according to stationary probability
-CE=(1+theta1*(1-beta)*EV)**(1/theta1)
+cons=optcons(Ws)                            # Consumption on Ws
+EW=sum(statprob*Ws)                         # Expected wealth under stationary distribution
+EV=sum(statprob*u0(Ws))                     # Expected Lifetime utility under optimal rule when initial wealth is distributed according to stationary probability
+CE=(1+theta1*(1-beta)*EV)**(1/theta1)       # Certainty Equivalent
 print "Expected wealth=%1.4f, expected LT Utility=%1.4f, CE=%1.4f" %(EW,EV,CE)
 
+##################################################################################################
 # Save results to be used by adaptive algorithm
 np.savez_compressed(file,vopt=v0,vopt2=u0,EWopt=EW,EVopt=EV,CEopt=CE,EW2opt=EW2,EV2opt=EV2,CE2opt=CE2,Ws=Ws,statprob=statprob,statprob2=statprob2,optcons=cons,optcons2=cons2)
-########
+##################################################################################################
 plt.show()
