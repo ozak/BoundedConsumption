@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+'''
+======================================================
+Author:  Ömer Özak, 2013--2014 (ozak at smu.edu)
+Website: http://omerozak.com
+GitHub:  https://github.com/ozak/BoundedConsumption
+======================================================
+'''
 from __future__ import division
 from random import uniform
 from numpy import ones, identity, transpose

@@ -1,5 +1,11 @@
-#!/Users/omer/Library/Enthought/Canopy_64bit/User/bin/Python
+#!/usr/bin/env python
 # coding: utf-8
+'''
+======================================================
+Author:  Ömer Özak, 2013--2014 (ozak at smu.edu)
+Website: http://omerozak.com
+GitHub:  https://github.com/ozak/BoundedConsumption
+======================================================
 # This code generates the Fully Rational Consumption and Value Functions for the paper:
 # 1. Özak, Ömer, "Optimal consumption under uncertainty, liquidity constraints, and bounded rationality", Journal of Economic Dynamics and Control, 2014, Vol. 39: 237-254 (http://dx.doi.org/10.1016/j.jedc.2013.12.007)
 # In particular, it computes optimal consumption when agent is liquidity constrained, income follows 3-point iid process (with possible inverse U-shaped trend), CRRA coefficient is 3, discount factor is 0.9 (as in Allen and Carroll) and agent lives T periods
@@ -10,6 +16,7 @@
 # Author: Ömer Özak
 # email: ozak (at) smu.edu
 # Date: April 2013
+'''
 from __future__ import division
 from scipy import linspace, mean, exp, randn 
 from scipy.optimize import fminbound
