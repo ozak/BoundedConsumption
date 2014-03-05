@@ -1,4 +1,8 @@
-## Optimal Consumption under Bounded Rationality and Liquidity Constraints
+## Optimal consumption under uncertainty, liquidity constraints, and bounded rationality
+
+by
+
+### Ömer Özak
 
 <http://dx.doi.org/10.1016/j.jedc.2013.12.007>
 
