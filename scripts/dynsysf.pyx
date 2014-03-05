@@ -6,6 +6,11 @@ Author:  Ömer Özak, 2013--2014 (ozak at smu.edu)
 Website: http://omerozak.com
 GitHub:  https://github.com/ozak/BoundedConsumption
 ======================================================
+
+This script optimizes some of the functions defined in dynsys.py using Cython
+TO DO: Try using Numba to optimize and generalize the Belmann equation operator
+
+These functions are based on Python scripts presented in Stachurski "Economic Dynamics" (2009) MIT Press
 '''
 from __future__ import division
 import numpy as np

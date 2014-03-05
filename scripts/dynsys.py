@@ -5,6 +5,8 @@ Author:  Ömer Özak, 2013--2014 (ozak at smu.edu)
 Website: http://omerozak.com
 GitHub:  https://github.com/ozak/BoundedConsumption
 ======================================================
+
+These functions are based on Python scripts presented in Stachurski "Economic Dynamics" (2009) MIT Press
 '''
 from __future__ import division
 from random import uniform
