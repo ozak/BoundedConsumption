@@ -8,7 +8,7 @@ The working paper version is available at <http://ssrn.com/abstract=2060620>
 
 Here you can find the Python scripts used to generate the simulations in my paper. They can be modified to generate the simulations of my paper with Peter Howitt "Adaptive Consumption Behavior" <http://dx.doi.org/10.1016/j.jedc.2013.11.003> or to simulate consumption behavior in large scale Agent-Based Macroeconomics models.
 
-Scripts are included in the scripts directory. In order do generate the graphs you need to run:
+Scripts are included in the scripts directory. In order to generate the graphs you need to run:
 
 1. OptConsHO.py
 2. OptConsIID.py
